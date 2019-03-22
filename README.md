@@ -4,7 +4,9 @@ Sprint burndown report based on remaining effort estimates.
 
 ## Installation
 
-    go get -u github.com/Rots/jira-report
+    git clone https://github.com/Rots/jira-report.git
+    cd jira-report
+    go build .
 
 ## Getting started
 
