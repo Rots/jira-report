@@ -27,7 +27,6 @@ func (d data) prepareDiagram(s jira.Sprint, startTime time.Time, startMargin boo
 
 func (d diagram) printDiagram(w io.Writer) {
 	t := `
-	<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 	   <div id="chart_div" style="width: 100%; height: 500px;"></div>
 	   <p>Sprint start: {{ .Sprint.StartDate }}</p>
 	   <p>Sprint end: {{ .Sprint.EndDate }}</p>

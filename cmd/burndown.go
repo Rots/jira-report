@@ -9,16 +9,17 @@ import (
 )
 
 var (
-	sprints       []string
-	board, output string
-	startMargin   bool
+	sprints                   []string
+	board, output             string
+	startMargin, fullTimeline bool
 )
 
 func init() {
 	burndownCmd.Flags().StringArrayVarP(&sprints, "sprint", "s", nil, "Name or ID of the sprint to get the report for. Default gets the first active sprint. If mutiple are provided, the output filenames are in the format {sprintID}-{output}.")
 	burndownCmd.Flags().StringVarP(&board, "board", "b", "", "Name or ID of the Sprint board to use.")
 	burndownCmd.Flags().StringVarP(&output, "output", "o", "estimates-burndown.html", "Name of the file to write the HTML report.")
-	burndownCmd.Flags().BoolVar(&startMargin, "start-margin", startMargin, "add additional 24h margin before the sprint start")
+	burndownCmd.Flags().BoolVar(&startMargin, "start-margin", startMargin, "add additional 1 day margin before the sprint start")
+	burndownCmd.Flags().BoolVar(&fullTimeline, "full-timeline", fullTimeline, "Do not strip chart to working time only. Also show weekends and non-work time in the chart.")
 	rootCmd.AddCommand(burndownCmd)
 }
 
@@ -30,14 +31,14 @@ var burndownCmd = &cobra.Command{
 		c := jira.InitJira(user, password, url)
 		switch len(sprints) {
 		case 0:
-			burndown.Run(c, board, "", interactive, output, startMargin)
+			burndown.Run(c, board, "", interactive, output, startMargin, fullTimeline)
 			return
 		case 1:
-			burndown.Run(c, board, sprints[0], interactive, output, startMargin)
+			burndown.Run(c, board, sprints[0], interactive, output, startMargin, fullTimeline)
 			return
 		}
 		for _, s := range sprints {
-			burndown.Run(c, board, s, interactive, fileNameWithPrefix(output, s+"-"), startMargin)
+			burndown.Run(c, board, s, interactive, fileNameWithPrefix(output, s+"-"), startMargin, fullTimeline)
 		}
 	},
 }

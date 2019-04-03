@@ -29,7 +29,7 @@ type entry struct {
 
 // Run creates the burndown report for remaining effort for given sprint
 // sprint can be provided as JIRA internal sprint ID or as sprint name
-func Run(j *agile.Client, board, sprint string, interactive bool, outfile string, startMargin bool) {
+func Run(j *agile.Client, board, sprint string, interactive bool, outfile string, startMargin, fullTimeline bool) {
 	s, err := getSprint(j, board, sprint, interactive)
 	if err != nil {
 		log.Fatalln(err)
@@ -58,11 +58,29 @@ func Run(j *agile.Client, board, sprint string, interactive bool, outfile string
 	}
 	defer f.Close()
 
-	diag := data.prepareDiagram(s, data.start, startMargin)
-	diag.printDiagram(f)
+	err = printHeader(f)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	if fullTimeline {
+		diag := data.prepareDiagram(s, data.start, startMargin)
+		diag.printDiagram(f)
+	} else {
+		bi, err := j.GetBoardInfo(s.OriginBoardID)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		hd := data.prepareWorkHoursDiagram(s, data.start, startMargin, bi)
+		hd.printDiagram(f)
+	}
 	printTable(f, "New", data.new)
 	printTable(f, "Progress", data.inProgress)
 	log.Println("Report written to: " + outfile)
+}
+
+func printHeader(w io.Writer) error {
+	_, err := fmt.Fprintln(w, `<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>`)
+	return err
 }
 
 func getStates(j *agile.Client) (map[string]bool, map[string]bool, error) {
