@@ -11,11 +11,6 @@ import (
 	jira "gopkg.in/andygrunwald/go-jira.v1"
 )
 
-var (
-	workDayStartTime = 9
-	workDayEndTime   = 18
-)
-
 type hoursDiagram struct {
 	Sprint    jira.Sprint
 	Entries   []sprintHoursEntry
@@ -28,14 +23,21 @@ type sprintHoursEntry struct {
 	Progress int
 }
 
+//Converter converts timestamps to sprint working time (duration from sprint start)
 type converter struct {
 	info.BoardInfo
-	Start time.Time
+	Start                              time.Time
+	WorkDayStartHours, WorkDayEndHours int
 }
 
-func (d data) prepareWorkHoursDiagram(s jira.Sprint, startTime time.Time, startMargin bool, workInfo info.BoardInfo) hoursDiagram {
+func (d data) prepareWorkHoursDiagram(s jira.Sprint, startTime time.Time, startMargin bool, workInfo info.BoardInfo, workdayStart, workdayEnd int) hoursDiagram {
 	sum := d.collapse(startTime)
-	conv := converter{workInfo, *s.StartDate}
+	conv := converter{
+		BoardInfo:         workInfo,
+		Start:             *s.StartDate,
+		WorkDayStartHours: workdayStart,
+		WorkDayEndHours:   workdayEnd,
+	}
 	e := conv.convertToSprintHoursEntries(sum)
 	//As conversion may have created duplicate entries for the same time, eliminate these
 	e = dedupeHours(e)
@@ -117,7 +119,7 @@ func (d hoursDiagram) printDiagram(w io.Writer) {
 		// 	return fmt.Sprintf("%.2f", secs/3600)
 		// },
 		"workDayHours": func() string {
-			return fmt.Sprintf("%02d:00 - %02d:00", workDayStartTime, workDayEndTime)
+			return fmt.Sprintf("%02d:00 - %02d:00", d.WorkInfo.WorkDayStartHours, d.WorkInfo.WorkDayEndHours)
 		},
 	}).Parse(t)
 	if err != nil {
@@ -148,9 +150,9 @@ func (hd converter) toSprintWorkTime(start, t time.Time) time.Duration {
 		} else {
 			y, m, d := currentTime.Date()
 			if hd.isWorkDay(currentTime) {
-				currentDuration += int64(time.Date(y, m, d, workDayEndTime, 0, 0, 0, currentTime.Location()).Sub(currentTime))
+				currentDuration += int64(time.Date(y, m, d, hd.WorkDayEndHours, 0, 0, 0, currentTime.Location()).Sub(currentTime))
 			}
-			currentTime = time.Date(y, m, d+1, workDayStartTime, 0, 0, 0, currentTime.Location())
+			currentTime = time.Date(y, m, d+1, hd.WorkDayStartHours, 0, 0, 0, currentTime.Location())
 		}
 	}
 	return time.Duration(currentDuration * isNegativeMultiplier)
@@ -159,10 +161,10 @@ func (hd converter) toWorkTime(t time.Time) time.Time {
 	for !hd.isWorkTime(t) {
 		//get to the first working date at start time
 		y, m, d := t.Date()
-		if t.Hour() < workDayStartTime {
-			t = time.Date(y, m, d, workDayStartTime, 0, 0, 0, t.Location())
+		if t.Hour() < hd.WorkDayStartHours {
+			t = time.Date(y, m, d, hd.WorkDayStartHours, 0, 0, 0, t.Location())
 		} else {
-			t = time.Date(y, m, d+1, workDayStartTime, 0, 0, 0, t.Location())
+			t = time.Date(y, m, d+1, hd.WorkDayStartHours, 0, 0, 0, t.Location())
 		}
 	}
 	return t
@@ -172,7 +174,7 @@ func (hd converter) isWorkTime(t time.Time) bool {
 	if !hd.isWorkDay(t) {
 		return false
 	}
-	workTime := t.Hour() >= workDayStartTime && t.Hour() < workDayEndTime
+	workTime := t.Hour() >= hd.WorkDayStartHours && t.Hour() < hd.WorkDayEndHours
 	return workTime
 }
 func (hd converter) isWorkDay(t time.Time) bool {

@@ -33,6 +33,8 @@ type Opts struct {
 	Interactive               bool
 	Outfile                   string
 	StartMargin, FullTimeline bool
+	// defines the working time in a day
+	WorkdayStart, WorkdayEnd int
 }
 
 // Run creates the burndown report for remaining effort for given sprint
@@ -78,7 +80,7 @@ func Run(opts Opts) {
 		if err != nil {
 			log.Fatalln(err)
 		}
-		hd := data.prepareWorkHoursDiagram(s, data.start, opts.StartMargin, bi)
+		hd := data.prepareWorkHoursDiagram(s, data.start, opts.StartMargin, bi, opts.WorkdayStart, opts.WorkdayEnd)
 		hd.printDiagram(f)
 	}
 	printTable(f, "New", data.new)
