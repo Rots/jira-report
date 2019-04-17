@@ -27,10 +27,18 @@ type entry struct {
 	Msg   string
 }
 
+type Opts struct {
+	*agile.Client
+	Board, Sprint             string
+	Interactive               bool
+	Outfile                   string
+	StartMargin, FullTimeline bool
+}
+
 // Run creates the burndown report for remaining effort for given sprint
 // sprint can be provided as JIRA internal sprint ID or as sprint name
-func Run(j *agile.Client, board, sprint string, interactive bool, outfile string, startMargin, fullTimeline bool) {
-	s, err := getSprint(j, board, sprint, interactive)
+func Run(opts Opts) {
+	s, err := getSprint(opts.Client, opts.Board, opts.Sprint, opts.Interactive)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -39,20 +47,20 @@ func Run(j *agile.Client, board, sprint string, interactive bool, outfile string
 		start = *s.StartDate
 	}
 	data := &data{start: start}
-	if startMargin {
+	if opts.StartMargin {
 		data.start = data.start.Add(-24 * time.Hour)
 	}
-	data.progressCategory, data.completeCategory, err = getStates(j)
+	data.progressCategory, data.completeCategory, err = getStates(opts.Client)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	opts := &jira.SearchOptions{Expand: "changelog"}
-	err = j.Issue.SearchPages(fmt.Sprintf("Sprint = %v ", s.ID), opts, data.collect)
+	sOpts := &jira.SearchOptions{Expand: "changelog"}
+	err = opts.Client.Issue.SearchPages(fmt.Sprintf("Sprint = %v ", s.ID), sOpts, data.collect)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	f, err := os.Create(outfile)
+	f, err := os.Create(opts.Outfile)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -62,20 +70,20 @@ func Run(j *agile.Client, board, sprint string, interactive bool, outfile string
 	if err != nil {
 		log.Fatalln(err)
 	}
-	if fullTimeline {
-		diag := data.prepareDiagram(s, data.start, startMargin)
+	if opts.FullTimeline {
+		diag := data.prepareDiagram(s, data.start, opts.StartMargin)
 		diag.printDiagram(f)
 	} else {
-		bi, err := j.GetBoardInfo(s.OriginBoardID)
+		bi, err := opts.Client.GetBoardInfo(s.OriginBoardID)
 		if err != nil {
 			log.Fatalln(err)
 		}
-		hd := data.prepareWorkHoursDiagram(s, data.start, startMargin, bi)
+		hd := data.prepareWorkHoursDiagram(s, data.start, opts.StartMargin, bi)
 		hd.printDiagram(f)
 	}
 	printTable(f, "New", data.new)
 	printTable(f, "Progress", data.inProgress)
-	log.Println("Report written to: " + outfile)
+	log.Println("Report written to: " + opts.Outfile)
 }
 
 func printHeader(w io.Writer) error {

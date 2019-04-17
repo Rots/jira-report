@@ -29,16 +29,28 @@ var burndownCmd = &cobra.Command{
 	Aliases: []string{"b"},
 	Run: func(cmd *cobra.Command, args []string) {
 		c := jira.InitJira(user, password, url)
+		opts := burndown.Opts{
+			Client:       c,
+			Board:        board,
+			Interactive:  interactive,
+			StartMargin:  startMargin,
+			FullTimeline: fullTimeline,
+		}
 		switch len(sprints) {
 		case 0:
-			burndown.Run(c, board, "", interactive, output, startMargin, fullTimeline)
+			opts.Outfile = output
+			burndown.Run(opts)
 			return
 		case 1:
-			burndown.Run(c, board, sprints[0], interactive, output, startMargin, fullTimeline)
+			opts.Outfile = output
+			opts.Sprint = sprints[0]
+			burndown.Run(opts)
 			return
 		}
 		for _, s := range sprints {
-			burndown.Run(c, board, s, interactive, fileNameWithPrefix(output, s+"-"), startMargin, fullTimeline)
+			opts.Outfile = fileNameWithPrefix(output, s+"-")
+			opts.Sprint = s
+			burndown.Run(opts)
 		}
 	},
 }
